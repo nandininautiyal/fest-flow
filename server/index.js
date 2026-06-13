@@ -1,8 +1,11 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+console.log('JWT_SECRET:', process.env.JWT_SECRET);
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
-require('dotenv').config();
+
 
 const app = express();
 const server = http.createServer(app);
@@ -12,6 +15,10 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
 app.use(express.urlencoded({ extended: true }));
 
 // test route
