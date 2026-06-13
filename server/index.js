@@ -25,6 +25,9 @@ app.use('/api/events', eventRoutes);
 const registrationRoutes = require('./routes/registrations');
 app.use('/api/registrations', registrationRoutes);
 
+const teamRoutes = require('./routes/teams');
+app.use('/api/teams', teamRoutes);
+
 app.use(express.urlencoded({ extended: true }));
 
 // test route

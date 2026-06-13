@@ -1,6 +1,6 @@
 const pool = require('../db/pool');
 
-async function registerForEvent(userId, eventId) {
+async function registerForEvent(userId, eventId, teamId = null) {
   const client = await pool.connect();
 
   try {
@@ -78,9 +78,9 @@ async function registerForEvent(userId, eventId) {
 
     // Slot available — confirm registration
     const reg = await client.query(
-      `INSERT INTO registrations (event_id, user_id, status)
-       VALUES ($1, $2, 'confirmed') RETURNING *`,
-      [eventId, userId]
+      `INSERT INTO registrations (event_id, user_id, team_id, status)
+       VALUES ($1, $2, $3, 'confirmed') RETURNING *`,
+      [eventId, userId, teamId]
     );
 
     await client.query('COMMIT');
