@@ -12,6 +12,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' }
 });
+const { setIO } = require('./services/registrationService');
+setIO(io);
 
 app.use(cors());
 app.use(express.json());

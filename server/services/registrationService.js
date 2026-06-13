@@ -1,5 +1,8 @@
 const pool = require('../db/pool');
 
+let io;
+const setIO = (socketIO) => { io = socketIO; };
+
 async function registerForEvent(userId, eventId, teamId = null) {
   const client = await pool.connect();
 
@@ -19,8 +22,7 @@ async function registerForEvent(userId, eventId, teamId = null) {
 
     const event = eventResult.rows[0];
 
-    // Check time slot conflict — does this user already have a confirmed
-    // registration that overlaps with this event's time window?
+    // Check time slot conflict
     const conflictResult = await client.query(`
       SELECT e.name, e.starts_at, e.ends_at
       FROM registrations r
@@ -84,6 +86,20 @@ async function registerForEvent(userId, eventId, teamId = null) {
     );
 
     await client.query('COMMIT');
+
+    // Emit real-time seat update to all connected clients
+    if (io) {
+      const countResult2 = await pool.query(
+        `SELECT COUNT(*) FROM registrations WHERE event_id = $1 AND status = 'confirmed'`,
+        [eventId]
+      );
+      io.emit('seat_update', {
+        event_id: eventId,
+        confirmed_count: parseInt(countResult2.rows[0].count),
+        capacity: event.capacity
+      });
+    }
+
     return { success: true, status: 201, waitlisted: false, registration: reg.rows[0] };
 
   } catch (err) {
@@ -95,4 +111,4 @@ async function registerForEvent(userId, eventId, teamId = null) {
   }
 }
 
-module.exports = { registerForEvent };
+module.exports = { registerForEvent, setIO };
