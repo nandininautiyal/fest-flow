@@ -77,6 +77,7 @@ export default function EventDetail() {
   const confirmed = parseInt(event.confirmed_count) || 0
   const isFull = confirmed >= event.capacity
   const pct = Math.min((confirmed / event.capacity) * 100, 100)
+  const isTeamEvent = event.event_type === 'team'
 
   return (
     <div className="page-enter">
@@ -141,23 +142,54 @@ export default function EventDetail() {
           </div>
         )}
 
-        {user ? (
-          <button
-            className="btn btn-solid"
-            style={{ width: '100%', padding: '1rem' }}
-            onClick={handleRegister}
-            disabled={regLoading}
-          >
-            {regLoading ? 'Inscribing your name...' : isFull ? 'Join the Waitlist' : 'Claim Your Seat'}
-          </button>
+        {/* TEAM EVENT — direct to My Registrations */}
+        {isTeamEvent ? (
+          <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: '0.7rem', letterSpacing: '0.15em', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+              Team Event
+            </p>
+            <p style={{ color: 'var(--parchment-dim)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              This trial requires a company. Form your team or join one using an invite code, then register as a unit.
+            </p>
+            {user ? (
+              <button
+                className="btn btn-solid"
+                style={{ width: '100%', padding: '1rem' }}
+                onClick={() => navigate('/my-registrations')}
+              >
+                Manage Your Company →
+              </button>
+            ) : (
+              <button
+                className="btn btn-solid"
+                style={{ width: '100%', padding: '1rem' }}
+                onClick={() => navigate('/login')}
+              >
+                Enter the Realm to Register
+              </button>
+            )}
+          </div>
+
         ) : (
-          <button
-            className="btn btn-solid"
-            style={{ width: '100%', padding: '1rem' }}
-            onClick={() => navigate('/login')}
-          >
-            Enter the Realm to Register
-          </button>
+          /* SOLO EVENT — register directly */
+          user ? (
+            <button
+              className="btn btn-solid"
+              style={{ width: '100%', padding: '1rem' }}
+              onClick={handleRegister}
+              disabled={regLoading}
+            >
+              {regLoading ? 'Inscribing your name...' : isFull ? 'Join the Waitlist' : 'Claim Your Seat'}
+            </button>
+          ) : (
+            <button
+              className="btn btn-solid"
+              style={{ width: '100%', padding: '1rem' }}
+              onClick={() => navigate('/login')}
+            >
+              Enter the Realm to Register
+            </button>
+          )
         )}
       </div>
     </div>

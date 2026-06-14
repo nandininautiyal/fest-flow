@@ -9,6 +9,14 @@ router.post('/', authenticate, async (req, res) => {
   const { event_id } = req.body;
   if (!event_id) return res.status(400).json({ error: 'event_id is required' });
 
+  // block solo registration for team events
+  const eventResult = await pool.query('SELECT * FROM events WHERE id = $1', [event_id]);
+  if (eventResult.rows.length === 0)
+    return res.status(404).json({ error: 'Event not found' });
+
+  if (eventResult.rows[0].event_type === 'team')
+    return res.status(400).json({ error: 'This is a team event. Create or join a team from My Registrations, then register as a team.' });
+
   const result = await registerForEvent(req.user.id, event_id);
   res.status(result.status).json(result);
 });
@@ -17,7 +25,7 @@ router.post('/', authenticate, async (req, res) => {
 router.get('/my', authenticate, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT r.*, e.name as event_name, e.starts_at, e.ends_at, e.venue
+      SELECT r.*, e.name as event_name, e.starts_at, e.ends_at, e.venue, e.event_type
       FROM registrations r
       JOIN events e ON r.event_id = e.id
       WHERE r.user_id = $1
