@@ -12,13 +12,6 @@ FestFlow replaces that entire mess.
 
 ---
 
-## Live Demo
-
-> Frontend: [festflow.vercel.app](#) *(coming soon)*
-> Backend API: [festflow-api.onrender.com](#) *(coming soon)*
-
----
-
 ## Features
 
 ### For Students
