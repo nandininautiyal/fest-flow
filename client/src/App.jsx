@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import Navbar from './components/Navbar'
+import Navbar from './components/NavBar'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import BrowseEvents from './pages/BrowseEvents'
