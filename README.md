@@ -4,6 +4,15 @@ A full-stack platform that lets colleges run their entire fest registration onli
 
 ---
 
+## Live Demo
+
+> Frontend: [project-bg46m.vercel.app](https://project-bg46m.vercel.app)
+> Backend API: [festflow-api-7yk6.onrender.com](https://festflow-api-7yk6.onrender.com)
+
+*Note: the backend is on Render's free tier and may take 30-60 seconds to wake up on first request after a period of inactivity.*
+
+---
+
 ## The Problem It Solves
 
 Every college fest has the same chaos. GDSC opens registrations for a 60-team hackathon. The Google Form link drops in 12 WhatsApp groups simultaneously. Within 4 minutes, 340 teams have submitted. Nobody knows who got in. The coordinators spend the next 3 hours manually deduplicating a spreadsheet. Three teams show up on the day and find out they weren't actually registered.
@@ -15,14 +24,15 @@ FestFlow replaces that entire mess.
 ## Features
 
 ### For Students
+- Sign up and log in with email/password or **Google OAuth**
 - Browse all events in a fest with real-time seat availability
 - Register solo for individual events
 - Create a team, receive an invite code, have teammates join via that code
 - Register the whole team for a team event in one action
 - Get automatically blocked from registering for two events at the same time slot
 - Join a waitlist if an event is full
-- View and manage all registrations in one place
-- Cancel a registration
+- View and manage all registrations and team memberships in one place
+- Cancel a solo registration or withdraw a team's registration (leader only)
 
 ### For Admins
 - Create and manage fests
@@ -80,7 +90,7 @@ When any student confirms a registration, the available seat count updates live 
 | Backend | Node.js + Express | REST API + Socket.io server |
 | Database | PostgreSQL | Row-level locking, OVERLAPS queries, ACID transactions |
 | Real-time | Socket.io | Live seat count updates across all clients |
-| Auth | JWT + bcrypt | Stateless auth with role-based access |
+| Auth | JWT + bcrypt + Passport (Google OAuth) | Stateless auth, password or one-click Google login |
 | DB Host | Supabase | Free managed PostgreSQL |
 | Frontend Host | Vercel | Auto-deploys from GitHub |
 | Backend Host | Render | Free Node.js hosting |
@@ -90,7 +100,7 @@ When any student confirms a registration, the available seat count updates live 
 ## Database Schema
 
 ```
-users          — id, name, email, password_hash, role (student/coordinator/admin)
+users          — id, name, email, password_hash (nullable), google_id, role
 fests          — id, name, description, created_by
 events         — id, fest_id, name, event_type, capacity, starts_at, ends_at, venue
 teams          — id, name, event_id, leader_id, invite_code
@@ -99,6 +109,8 @@ registrations  — id, event_id, user_id, team_id, status (confirmed/waitlisted/
 waitlist       — id, event_id, user_id, position
 ```
 
+`password_hash` is nullable and `google_id` is unique — this allows a single `users` table to support both email/password accounts and Google OAuth accounts. If a user originally signed up with a password and later signs in with Google using the same email, their existing account is linked rather than duplicated.
+
 ---
 
 ## Project Structure
@@ -106,18 +118,21 @@ waitlist       — id, event_id, user_id, position
 ```
 festflow/
 ├── client/                  # React SPA (Vite)
+│   ├── vercel.json          # SPA rewrite rules for client-side routing
 │   └── src/
 │       ├── components/      # Navbar, EventCard, SeatCounter
-│       ├── pages/           # BrowseEvents, EventDetail, Login, Register, MyRegistrations
+│       ├── pages/           # BrowseEvents, EventDetail, Login, Register,
+│       │                    # MyRegistrations, OAuthSuccess
 │       ├── context/         # AuthContext, SocketContext
 │       └── index.css        # Design system — Era of Crowns theme
 │
 └── server/                  # Node.js + Express
-    ├── routes/              # auth, events, registrations, teams, admin
-    ├── services/            # registrationService (concurrency logic), waitlistService
-    ├── middleware/          # auth (JWT), roles, errorHandler
-    ├── db/                  # pool.js (pg connection), schema.sql
-    └── views/               # EJS admin panel templates
+    ├── config/              # passport.js — Google OAuth strategy
+    ├── routes/               # auth, events, registrations, teams, admin
+    ├── services/             # registrationService (concurrency logic), waitlistService
+    ├── middleware/           # auth (JWT), roles, errorHandler
+    ├── db/                   # pool.js (pg connection), schema.sql
+    └── views/                # EJS admin panel templates
 ```
 
 ---
@@ -127,6 +142,7 @@ festflow/
 ### Prerequisites
 - Node.js 18+
 - A Supabase account (free)
+- A Google Cloud project (free, only needed for OAuth)
 
 ### 1. Clone the repo
 
@@ -139,8 +155,21 @@ cd fest-flow
 
 - Create a new project on [supabase.com](https://supabase.com)
 - Go to SQL Editor → paste the contents of `server/db/schema.sql` → Run
+- Then run:
+  ```sql
+  ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+  ALTER TABLE users ADD COLUMN google_id TEXT UNIQUE;
+  ```
 
-### 3. Configure environment variables
+### 3. Set up Google OAuth (optional)
+
+- Go to [console.cloud.google.com](https://console.cloud.google.com) → create a project
+- Configure the OAuth consent screen (External)
+- Create OAuth credentials → Web application
+- Add an authorized redirect URI: `http://localhost:5000/api/auth/google/callback` (and your production URL when deployed)
+- Copy the Client ID and Client Secret
+
+### 4. Configure environment variables
 
 Create `server/.env`:
 
@@ -148,6 +177,10 @@ Create `server/.env`:
 DATABASE_URL=postgresql://postgres:[password]@[host].supabase.com:5432/postgres
 JWT_SECRET=your_secret_key_here
 PORT=5000
+CLIENT_URL=http://localhost:5173
+SESSION_SECRET=another_random_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```
 
 Create `client/.env`:
@@ -156,7 +189,7 @@ Create `client/.env`:
 VITE_API_URL=http://localhost:5000
 ```
 
-### 4. Install dependencies
+### 5. Install dependencies
 
 ```bash
 # Server
@@ -168,7 +201,7 @@ cd ../client
 npm install
 ```
 
-### 5. Run locally
+### 6. Run locally
 
 ```bash
 # Terminal 1 — start the server
@@ -184,13 +217,23 @@ Open `http://localhost:5173`
 
 ---
 
+## Deployment
+
+- **Backend → Render**: Root directory `server`, build command `npm install`, start command `node index.js`. Add all server `.env` variables in the Render dashboard.
+- **Frontend → Vercel**: Root directory `client`, framework preset Vite. Add `VITE_API_URL` pointing to your Render URL. `vercel.json` handles SPA routing so direct links to routes like `/oauth-success` don't 404.
+- Update `CLIENT_URL` on Render and the Google Cloud authorized redirect URI to match your live URLs once deployed.
+
+---
+
 ## API Endpoints
 
 ### Auth
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/register` | Register a new user with email/password |
 | POST | `/api/auth/login` | Login and receive JWT |
+| GET | `/api/auth/google` | Redirect to Google for OAuth sign-in |
+| GET | `/api/auth/google/callback` | Google OAuth callback — issues JWT, redirects to frontend |
 
 ### Events
 | Method | Endpoint | Description |
@@ -231,6 +274,9 @@ The student-facing app needs dynamic, real-time UI — seat counts update live, 
 **Why Socket.io over polling?**
 Polling would mean every client hitting the server every few seconds to check seat counts. With 500 students on the browse page during peak registration, that is 500 requests every few seconds for data that only changes on registration events. Socket.io pushes updates only when something actually changes.
 
+**Why add Google OAuth as an addition rather than a replacement?**
+Email/password with bcrypt was already a complete, secure auth flow wired into every protected route. Replacing it outright would mean reworking every route for no functional gain. Instead, Google OAuth was added as a second path into the same `users` table and the same JWT issuance — existing accounts are untouched, and a user who signs up with email first and later uses Google with the same address gets their accounts linked rather than duplicated.
+
 ---
 
 ## What I Would Add at Scale
@@ -241,6 +287,7 @@ Polling would mean every client hitting the server every few seconds to check se
 | Multiple services reacting to one registration event | Kafka to fan out to email service, analytics service |
 | Rate limiting registration spam | Redis-based rate limiter per user |
 | Registration confirmation emails | Nodemailer with Resend/Brevo SMTP |
+| Cold starts on free-tier hosting | Move to a paid tier or add a keep-alive ping |
 
 ---
 
@@ -252,3 +299,4 @@ NSUT Delhi
 
 ---
 
+*Built with PostgreSQL row-level locking, Socket.io, Google OAuth, and an unhealthy obsession with not overselling hackathon slots.*
