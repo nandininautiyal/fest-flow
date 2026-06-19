@@ -34,7 +34,7 @@ FestFlow replaces that entire mess.
 - View and manage all registrations and team memberships in one place
 - Cancel a solo registration or withdraw a team's registration (leader only)
 
-### For Admins
+### For Admins (coming soon)
 - Create and manage fests
 - Create events — set capacity, time slot, venue, event type (solo/team)
 - View registrations across all events
