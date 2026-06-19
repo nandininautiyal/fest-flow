@@ -36,6 +36,26 @@ export default function Login() {
 
         <div className="divider">♛</div>
 
+        <a
+          href={`${API}/api/auth/google`}
+          className="btn"
+          style={{
+            width: '100%',
+            display: 'block',
+            textAlign: 'center',
+            marginBottom: '1.5rem',
+            textDecoration: 'none'
+          }}
+        >
+          Continue with Google
+        </a>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.5rem 0', color: 'var(--parchment-dim)', fontSize: '0.8rem' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--smoke)' }} />
+          <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>OR</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--smoke)' }} />
+        </div>
+
         {error && <div className="error-msg">{error}</div>}
 
         <form onSubmit={handleSubmit}>

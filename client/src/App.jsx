@@ -6,6 +6,8 @@ import Register from './pages/Register'
 import BrowseEvents from './pages/BrowseEvents'
 import EventDetail from './pages/EventDetail'
 import MyRegistrations from './pages/MyRegistrations'
+import OAuthSuccess from './pages/OAuthSuccess'
+
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
@@ -26,6 +28,7 @@ function AppRoutes() {
         <Route path="/my-registrations" element={
           <ProtectedRoute><MyRegistrations /></ProtectedRoute>
         } />
+        <Route path="/oauth-success" element={<OAuthSuccess />} />
       </Routes>
     </>
   )
