@@ -17,16 +17,18 @@ const eventImages = {
   'Eye of the Realm': 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=80',
   'Hackathon 2026': 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&q=80',
   'The Treasury of Minds': 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&q=80',
-'The Royal Banquet': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80',
+  'The Royal Banquet': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80',
 }
 
 export default function BrowseEvents() {
   const [events, setEvents] = useState([])
+  const [fests, setFests] = useState([])
+  const [activeFestId, setActiveFestId] = useState(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetchEvents()
+    fetchAll()
     const socket = io(API)
     socket.on('seat_update', ({ event_id, confirmed_count, capacity }) => {
       setEvents(prev => prev.map(e =>
@@ -36,10 +38,17 @@ export default function BrowseEvents() {
     return () => socket.disconnect()
   }, [])
 
-  async function fetchEvents() {
+  async function fetchAll() {
     try {
-      const res = await axios.get(`${API}/api/events`)
-      setEvents(res.data)
+      const [eventsRes, festsRes] = await Promise.all([
+        axios.get(`${API}/api/events`),
+        axios.get(`${API}/api/events/fests/all`)
+      ])
+      setEvents(eventsRes.data)
+      setFests(festsRes.data)
+      if (festsRes.data.length > 0) {
+        setActiveFestId(festsRes.data[0].id)
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -74,10 +83,15 @@ export default function BrowseEvents() {
     </div>
   )
 
+  const activeFest = fests.find(f => f.id === activeFestId)
+  const filteredEvents = activeFestId
+    ? events.filter(e => e.fest_id === activeFestId)
+    : events
+
   return (
     <div className="page-enter">
       <div className="hero">
-        <p className="hero-eyebrow">TechFest 2026</p>
+        <p className="hero-eyebrow">{activeFest ? activeFest.name : 'FestFlow'}</p>
         <h1 className="hero-title">Choose Your Trial</h1>
         <p className="hero-sub">
           Every event is a test of a different craft. Register before the gates close.
@@ -85,15 +99,49 @@ export default function BrowseEvents() {
       </div>
 
       <div className="container">
+
+        {/* FEST DROPDOWN */}
+        {fests.length > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.5rem' }}>
+            <select
+              value={activeFestId || ''}
+              onChange={(e) => setActiveFestId(e.target.value)}
+              style={{
+                background: 'var(--navy)',
+                border: '1px solid var(--gold-dim)',
+                color: 'var(--gold)',
+                fontFamily: 'var(--font-display)',
+                fontSize: '0.85rem',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                outline: 'none',
+                minWidth: '280px',
+                textAlign: 'center',
+                appearance: 'none',
+                WebkitAppearance: 'none'
+              }}
+            >
+              {fests.map(fest => (
+                <option key={fest.id} value={fest.id} style={{ background: 'var(--navy)', color: 'var(--parchment)' }}>
+                  {fest.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="divider">♛</div>
 
-        {events.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--parchment-dim)', padding: '3rem' }}>
-            No events have been proclaimed yet.
+            No events have been proclaimed yet for this fest.
           </p>
         ) : (
           <div className="events-grid">
-            {events.map(event => (
+            {filteredEvents.map(event => (
               <div
                 key={event.id}
                 className="card"

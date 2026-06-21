@@ -4,6 +4,17 @@ const pool = require('../db/pool');
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
 
+// GET /api/fests — list all fests
+router.get('/fests/all', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM fests ORDER BY created_at ASC`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/events — browse all events (public)
 router.get('/', async (req, res) => {
   try {
