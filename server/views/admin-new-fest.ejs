@@ -1,0 +1,15 @@
+<h1>Create a Fest</h1>
+<p style="color: var(--parchment-dim); margin-bottom: 2rem;">A fest is the umbrella under which events live.</p>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+<% if (success) { %><div class="success"><%= success %></div><% } %>
+<form method="POST" action="/admin/fests/new" style="max-width: 480px;">
+  <div class="form-group">
+    <label>Fest Name</label>
+    <input type="text" name="name" required />
+  </div>
+  <div class="form-group">
+    <label>Description</label>
+    <textarea name="description" rows="3"></textarea>
+  </div>
+  <button class="btn btn-solid">Create Fest</button>
+</form>

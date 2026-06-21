@@ -6,6 +6,8 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const passport = require('./config/passport');
+const session = require('express-session');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,7 +21,25 @@ app.use(cors({
   origin: [process.env.CLIENT_URL, 'http://localhost:5173']
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.set('layout', 'layout');
+
+const expressLayouts = require('express-ejs-layouts');
+app.use(expressLayouts);
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 8 } // 8 hours
+}));
+
+const adminRoutes = require('./routes/admin');
+app.use('/admin', adminRoutes);
 
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
@@ -32,8 +52,6 @@ app.use('/api/registrations', registrationRoutes);
 
 const teamRoutes = require('./routes/teams');
 app.use('/api/teams', teamRoutes);
-
-app.use(express.urlencoded({ extended: true }));
 
 // test route
 app.get('/', (req, res) => {

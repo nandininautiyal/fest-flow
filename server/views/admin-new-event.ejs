@@ -1,0 +1,47 @@
+<h1>Create an Event</h1>
+<p style="color: var(--parchment-dim); margin-bottom: 2rem;">Add a trial under one of your fests.</p>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+<% if (success) { %><div class="success"><%= success %></div><% } %>
+<form method="POST" action="/admin/events/new" style="max-width: 600px;">
+  <div class="form-group">
+    <label>Fest</label>
+    <select name="fest_id" required>
+      <option value="">Select a fest</option>
+      <% fests.forEach(f => { %>
+        <option value="<%= f.id %>"><%= f.name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Event Name</label>
+    <input type="text" name="name" required />
+  </div>
+  <div class="form-group">
+    <label>Description</label>
+    <textarea name="description" rows="2"></textarea>
+  </div>
+  <div class="form-group">
+    <label>Event Type</label>
+    <select name="event_type" required>
+      <option value="solo">Solo</option>
+      <option value="team">Team</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Capacity</label>
+    <input type="number" name="capacity" required />
+  </div>
+  <div class="form-group">
+    <label>Venue</label>
+    <input type="text" name="venue" />
+  </div>
+  <div class="form-group">
+    <label>Starts At</label>
+    <input type="datetime-local" name="starts_at" required />
+  </div>
+  <div class="form-group">
+    <label>Ends At</label>
+    <input type="datetime-local" name="ends_at" required />
+  </div>
+  <button class="btn btn-solid">Create Event</button>
+</form>

@@ -1,0 +1,37 @@
+<h1>Dashboard</h1>
+<p style="color: var(--parchment-dim); margin-bottom: 2rem;">Overview of all fests and events.</p>
+
+<div class="stat-grid">
+  <div class="stat-box">
+    <div class="stat-num"><%= stats.totalEvents %></div>
+    <div class="stat-label">Total Events</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num"><%= stats.totalRegistrations %></div>
+    <div class="stat-label">Total Registrations</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num"><%= stats.totalWaitlisted %></div>
+    <div class="stat-label">Waitlisted</div>
+  </div>
+</div>
+
+<h2 style="font-size:1.1rem; margin-bottom:1rem;">All Events</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th><th>Type</th><th>Seats</th><th>Date</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% events.forEach(ev => { %>
+    <tr>
+      <td><%= ev.name %></td>
+      <td><span class="tag"><%= ev.event_type %></span></td>
+      <td><%= ev.confirmed_count %> / <%= ev.capacity %></td>
+      <td><%= new Date(ev.starts_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) %></td>
+      <td><a href="/admin/events/<%= ev.id %>/registrations">View Registrations →</a></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>

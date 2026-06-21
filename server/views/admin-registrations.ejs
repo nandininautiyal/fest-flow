@@ -1,0 +1,24 @@
+<h1><%= event.name %></h1>
+<p style="color: var(--parchment-dim); margin-bottom: 2rem;">
+  <%= event.confirmed_count %> / <%= event.capacity %> seats claimed
+</p>
+
+<h2 style="font-size:1.1rem; margin-bottom:1rem;">Registered Participants</h2>
+<table>
+  <thead>
+    <tr><th>Name</th><th>Email</th><th>Team</th><th>Status</th><th>Registered At</th></tr>
+  </thead>
+  <tbody>
+    <% registrations.forEach(r => { %>
+    <tr>
+      <td><%= r.user_name %></td>
+      <td><%= r.user_email %></td>
+      <td><%= r.team_name || '—' %></td>
+      <td><span class="tag"><%= r.status %></span></td>
+      <td><%= new Date(r.registered_at).toLocaleDateString('en-IN') %></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<div style="margin-top:2rem;"><a href="/admin/dashboard">← Back to Dashboard</a></div>
