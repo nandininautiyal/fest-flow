@@ -18,7 +18,7 @@ A full-stack platform that lets colleges run their entire fest registration onli
 
 Every college fest has the same chaos. GDSC opens registrations for a 60-team hackathon. The Google Form link drops in 12 WhatsApp groups simultaneously. Within 4 minutes, 340 teams have submitted. Nobody knows who got in. The coordinators spend the next 3 hours manually deduplicating a spreadsheet. Three teams show up on the day and find out they weren't actually registered.
 
-FestFlow replaces that entire mess.
+FestFlow replaces that entire mess — and proves it with an actual concurrency test (see below), not just a claim in a README.
 
 ---
 
@@ -65,6 +65,24 @@ COMMIT;
 
 When a registration request comes in, the database row for that event gets locked for the duration of the transaction. Every other simultaneous request has to wait. The capacity check and the insert happen as one atomic unit. It is physically impossible to oversell.
 
+**This is proven, not just claimed.** `server/test-concurrency.js` is a standalone script that creates 20 users and fires 20 simultaneous registration requests at a test event with only 5 seats:
+
+```bash
+cd server
+node test-concurrency.js
+```
+
+```
+Creating 20 test users...
+Firing 20 simultaneous registration requests...
+--- RESULTS ---
+Confirmed: 5
+Waitlisted: 15
+Failed/Other: 0
+Total: 20
+✅ PASS — exactly 5 confirmed registrations, no overselling.
+```
+
 ### 2. The Time Slot Conflict Problem
 
 A student registers for the hackathon from 10am to 6pm, then also registers for a workshop from 2pm to 4pm. Both go through. On the day they cannot attend both.
@@ -101,7 +119,7 @@ A team event cannot be entered solo, and a solo event has no team flow. This is 
 | Database | PostgreSQL | Row-level locking, OVERLAPS queries, ACID transactions |
 | Real-time | Socket.io | Live seat count updates across all clients |
 | Auth | JWT + bcrypt + Passport (Google OAuth) | Stateless auth for students, password or one-click Google login |
-| DB Host | Supabase | Free managed PostgreSQL |
+| DB Host | Supabase | Free managed PostgreSQL, RLS enabled on all tables |
 | Frontend Host | Vercel | Auto-deploys from GitHub |
 | Backend Host | Render | Free Node.js hosting, also serves the admin panel |
 
@@ -122,6 +140,8 @@ waitlist       — id, event_id, user_id, position
 `password_hash` is nullable and `google_id` is unique — this allows a single `users` table to support both email/password accounts and Google OAuth accounts. If a user originally signed up with a password and later signs in with Google using the same email, their existing account is linked rather than duplicated.
 
 `fest_id` on `events` means the platform supports multiple fests running at once. A college's Tech Fest and Cultural Fest can both be live on FestFlow simultaneously, each with their own set of events, and students filter between them on the browse page.
+
+**Security:** Row-Level Security (RLS) is enabled on every table in Supabase with no public policies attached. This blocks Supabase's auto-generated public REST API from reading or writing any data. The application itself is unaffected — the Express server connects with the full database connection string, which bypasses RLS by design, so all normal app functionality (login, registration, admin actions) works exactly as before.
 
 ---
 
@@ -144,13 +164,14 @@ festflow/
     ├── services/                 # registrationService (concurrency logic), waitlistService
     ├── middleware/                # auth (JWT), roles, errorHandler
     ├── db/                        # pool.js (pg connection), schema.sql
-    └── views/                     # EJS admin panel templates
-        ├── layout.ejs
-        ├── admin-login.ejs
-        ├── admin-dashboard.ejs
-        ├── admin-new-fest.ejs
-        ├── admin-new-event.ejs
-        └── admin-registrations.ejs
+    ├── views/                     # EJS admin panel templates
+    │   ├── layout.ejs
+    │   ├── admin-login.ejs
+    │   ├── admin-dashboard.ejs
+    │   ├── admin-new-fest.ejs
+    │   ├── admin-new-event.ejs
+    │   └── admin-registrations.ejs
+    └── test-concurrency.js        # Fires 20 simultaneous registrations at a 5-seat event
 ```
 
 ---
@@ -177,6 +198,14 @@ cd fest-flow
   ```sql
   ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
   ALTER TABLE users ADD COLUMN google_id TEXT UNIQUE;
+
+  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE fests ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
   ```
 
 ### 3. Set up Google OAuth (optional)
@@ -243,6 +272,28 @@ npm run dev
 
 - Student app: `http://localhost:5173`
 - Admin panel: `http://localhost:5000/admin/login`
+
+### 8. Run the concurrency test (optional but recommended)
+
+With the server running in one terminal, create a low-capacity test event via Supabase SQL Editor:
+
+```sql
+INSERT INTO events (fest_id, name, description, event_type, capacity, venue, starts_at, ends_at)
+VALUES (
+  'YOUR_FEST_ID',
+  'Concurrency Test Trial',
+  'A test event with only 5 seats to verify locking works.',
+  'solo', 5, 'Test Chamber', '2026-12-01T10:00:00Z', '2026-12-01T14:00:00Z'
+)
+RETURNING id;
+```
+
+Paste the returned `id` into `EVENT_ID` in `server/test-concurrency.js`, then in a second terminal:
+
+```bash
+cd server
+node test-concurrency.js
+```
 
 ---
 
@@ -320,6 +371,9 @@ Email/password with bcrypt was already a complete, secure auth flow wired into e
 **Why support multiple fests instead of one?**
 A college doesn't run just one fest a year — there's often a tech fest and a cultural fest, sometimes overlapping. Hardcoding a single fest would mean rebuilding the platform for every new fest. Adding `fest_id` as a foreign key and a fest filter on the browse page lets the same deployment serve any number of fests indefinitely, with no schema or code changes needed to launch a new one — just a form submission in the admin panel.
 
+**Why enable RLS with no policies instead of writing policies?**
+The Express server is the only intended access path to the database — it connects via the full Postgres connection string, not Supabase's client SDK, so RLS doesn't gate it. Enabling RLS with zero policies fully closes Supabase's public REST API (which uses the anon key) without requiring policy logic that the app doesn't actually need.
+
 ---
 
 ## What I Would Add at Scale
@@ -332,15 +386,8 @@ A college doesn't run just one fest a year — there's often a tech fest and a c
 | Registration confirmation emails | Nodemailer with Resend/Brevo SMTP |
 | Cold starts on free-tier hosting | Move to a paid tier or add a keep-alive ping |
 | Admin panel growing past 2-3 fest organizers | Role-based permissions (per-fest admin scoping, coordinator role for individual events) |
+| Waitlist promotion on cancellation | Auto-promote next-in-line waitlisted user inside the same cancellation transaction |
 
 ---
 
-## Author
-
-**Nandini Nautiyal**
-NSUT Delhi
-[github.com/nandininautiyal](https://github.com/nandininautiyal)
-
----
-
-*Built with PostgreSQL row-level locking, Socket.io, Google OAuth, a server-rendered admin panel, and an unhealthy obsession with not overselling hackathon slots.*
+*Built with PostgreSQL row-level locking, Socket.io, Google OAuth, a server-rendered admin panel, an actual concurrency test proving it all works, and an unhealthy obsession with not overselling hackathon slots.*
