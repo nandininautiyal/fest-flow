@@ -389,5 +389,3 @@ The Express server is the only intended access path to the database — it conne
 | Waitlist promotion on cancellation | Auto-promote next-in-line waitlisted user inside the same cancellation transaction |
 
 ---
-
-*Built with PostgreSQL row-level locking, Socket.io, Google OAuth, a server-rendered admin panel, an actual concurrency test proving it all works, and an unhealthy obsession with not overselling hackathon slots.*
